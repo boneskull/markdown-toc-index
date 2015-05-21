@@ -133,7 +133,7 @@ markdownIndex.inject = function inject(filepath, toc, callback) {
   return fs.readFileAsync(filepath, 'utf8')
     .then(function (str) {
       return fs.writeFileAsync(filepath,
-        str.replace(injectRegex).format('$1\n%s\n$2', toc));
+        str.replace(injectRegex, format('$1\n%s\n$2', toc)));
     })
     .nodeify(callback);
 };
