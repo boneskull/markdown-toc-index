@@ -30,6 +30,9 @@
   "dependencies": {
     "bluebird": "^2.9.25",
     "globule": "^0.2.0",
+    "lodash.isnumber": "^3.0.1",
+    "lodash.isstring": "^3.0.1",
+    "lodash.mapvalues": "^3.0.1",
     "marked-toc": "^0.3.0",
     "yargs": "^3.5.4"
   },

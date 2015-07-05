@@ -10,12 +10,13 @@ var util = require('util'),
  * Globs ignored by default.
  * @type {string[]}
  */
-var IGNORED = ['node_modules/**/*.md'],
+var IGNORED = ['node_modules/**/*.md', 'node_modules/**/*.markdown'],
   format = util.format,
   makeIgnoreFilter, markdownIndex,
-  injectRegex = new RegExp('(<!--\s*INDEX\s*-->)[\S\s]*(<!--\s*\/INDEX\s*-->)',
-    'i'),
-  fs = Promise.promisifyAll(require('fs'));
+  injectRegex = new RegExp('(<!--\\s*INDEX\\s*-->)[\\S\\s]*(<!--\\s*\\/INDEX\\s*-->)',
+    'm'),
+  fs = Promise.promisifyAll(require('fs')),
+  DEFAULT_MAX_DEPTH = 3;
 
 Promise.longStackTraces();
 
@@ -50,17 +51,23 @@ makeIgnoreFilter = function makeIgnoreFilter(dir) {
  * Returns a string TOC for Markdown files found recursively in a given
  * directory.
  * `node_modules` is ignored.
- * @param {string} dir Dir to walk
- * @param {(string|Function)} [exclude] Glob to ignore or callback
+ * @param {string} glob Dir to walk
+ * @param {Object} [opts] Opts
+ * @param {number} [opts.maxDepth] Number of levels deep to inspect
+ * @param {string} [opts.exclude] Glob to exclude
  * @param {markdownIndex.tocCallback} [callback] Callback function; omit if
  * using Promises.
  * @returns {Promise.<string>} TOC
  */
-markdownIndex = function markdownIndex(dir, exclude, callback) {
+markdownIndex = function markdownIndex(glob, opts, callback) {
 
   var filepaths, globs, ignored;
+  var singular = false;
+  var exclude;
+  opts = opts || {};
+  exclude = opts.exclude;
 
-  if (!(dir && typeof dir === 'string')) {
+  if (!(glob && typeof glob === 'string')) {
     return Promise.reject(new Error('invalid parameters'))
       .nodeify(callback);
   }
@@ -75,13 +82,18 @@ markdownIndex = function markdownIndex(dir, exclude, callback) {
    * @type {Array.<string>}
    */
   ignored = IGNORED
-    .filter(makeIgnoreFilter(dir))
+    .filter(makeIgnoreFilter(glob))
     .map(function (ignore) {
-      return '!' + path.join(dir, ignore);
+      return '!' + path.join(glob, ignore);
     });
 
-  // in globule, ignored files must come last
-  globs = [path.join(dir, '**', '*.md')].concat(ignored);
+  if (glob.charAt(glob.length - 1) === path.sep) {
+    // in globule, ignored files must come last
+    globs = [path.join(glob, '**', '*.md'), path.join(glob, '**', '*.markdown')]
+      .concat(ignored);
+  } else {
+    globs = [glob].concat(ignored);
+  }
 
   if (exclude) {
     globs.push(format('!%s', path.resolve(exclude)));
@@ -90,14 +102,25 @@ markdownIndex = function markdownIndex(dir, exclude, callback) {
   // Recursively read all markdown files
   filepaths = globule.find.apply(globule, globs);
 
+  if (filepaths.length === 1) {
+    singular = true;
+  }
+
   return Promise.map(filepaths, function (filepath) {
     // Create table of contents
     return fs.readFileAsync(filepath, 'utf8')
       .then(function (file) {
-        var basename, relative, table = toc(file);
+        var basename, relative, table = toc(file, opts);
 
         basename = path.basename(filepath, '.md');
-        relative = path.relative(dir, filepath);
+        if (basename === filepath) {
+          basename = path.basename(filepath, '.markdown');
+        }
+        relative = path.relative(glob, filepath);
+
+        if (singular) {
+          return table;
+        }
 
         // Add filename as a heading; prepend filename to links
         return format('### [%s](%s)\n%s', basename, relative, table)
@@ -137,5 +160,6 @@ markdownIndex.inject = function inject(filepath, toc, callback) {
     })
     .nodeify(callback);
 };
+markdownIndex.DEFAULT_MAX_DEPTH = DEFAULT_MAX_DEPTH;
 
 module.exports = markdownIndex;
