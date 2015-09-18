@@ -61,7 +61,7 @@ makeIgnoreFilter = function makeIgnoreFilter(dir) {
  */
 markdownIndex = function markdownIndex(glob, opts, callback) {
 
-  var filepaths, globs, ignored;
+  var filepaths, globs, ignoredGlobs;
   var singular = false;
   var exclude;
   opts = opts || {};
@@ -81,56 +81,74 @@ markdownIndex = function markdownIndex(glob, opts, callback) {
    * Filtered list of ignores that are not `dir`
    * @type {Array.<string>}
    */
-  ignored = IGNORED
+  ignoredGlobs = IGNORED
     .filter(makeIgnoreFilter(glob))
-    .map(function (ignore) {
+    .map(function(ignore) {
       return '!' + path.join(glob, ignore);
     });
 
-  if (glob.charAt(glob.length - 1) === path.sep) {
-    // in globule, ignored files must come last
-    globs = [path.join(glob, '**', '*.md'), path.join(glob, '**', '*.markdown')]
-      .concat(ignored);
-  } else {
-    globs = [glob].concat(ignored);
+  function appendIgnoredGlobs(glob) {
+    return [].concat(glob).concat(ignoredGlobs);
   }
 
-  if (exclude) {
-    globs.push(format('!%s', path.resolve(exclude)));
+  function appendGlobsToDir(glob) {
+    return appendIgnoredGlobs([
+      path.join(glob, '**', '*.md'),
+      path.join(glob, '**', '*.markdown')
+    ]);
   }
 
-  // Recursively read all markdown files
-  filepaths = globule.find.apply(globule, globs);
-
-  if (filepaths.length === 1) {
-    singular = true;
-  }
-
-  return Promise.map(filepaths, function (filepath) {
-    // Create table of contents
-    return fs.readFileAsync(filepath, 'utf8')
-      .then(function (file) {
-        var basename, relative, table = toc(file, opts);
-
-        basename = path.basename(filepath, '.md');
-        if (basename === filepath) {
-          basename = path.basename(filepath, '.markdown');
-        }
-        relative = path.relative(glob, filepath);
-
-        if (singular) {
-          return table;
-        }
-
-        // Add filename as a heading; prepend filename to links
-        return format('### [%s](%s)\n%s', basename, relative, table)
-          .replace(/\(#/g, format('(%s#', relative));
-      });
-  })
-    .then(function (tables) {
-      return tables.join('\n');
+  return fs.statAsync(glob)
+    .then(function(stat) {
+      return stat.isDirectory()
+        ? appendGlobsToDir(glob)
+        : appendIgnoredGlobs(glob);
+    }, function() {
+      return glob.charAt(glob.length - 1) ===
+      path.sep
+        ? appendGlobsToDir(glob)
+        : appendIgnoredGlobs(glob);
     })
-    .nodeify(callback);
+    .then(function(globs) {
+      if (exclude) {
+        globs.push(format('!%s', path.resolve(exclude)));
+      }
+
+      filepaths = globule.find.apply(globule, globs).filter(function(filepath) {
+        return path.basename(filepath) !== opts.inject;
+      });
+
+      if (filepaths.length === 1) {
+        singular = true;
+      }
+
+      return Promise.map(filepaths, function(filepath) {
+        // Create table of contents
+        return fs.readFileAsync(filepath, 'utf8')
+          .then(function(file) {
+            var basename, relative, table = toc(file, opts);
+
+            basename = path.basename(filepath, '.md');
+            if (basename === filepath) {
+              basename = path.basename(filepath, '.markdown');
+            }
+            relative = path.relative(glob, filepath);
+
+            if (singular) {
+              return table;
+            }
+
+            // Add filename as a heading; prepend filename to links
+            return format('### [%s](%s)\n%s', basename, relative, table)
+              .replace(/\(#/g, format('(%s#', relative));
+          });
+      })
+        .then(function(tables) {
+          return tables.join('\n');
+        })
+        .nodeify(callback);
+    })
+
 };
 
 /**
@@ -154,7 +172,7 @@ markdownIndex.inject = function inject(filepath, toc, callback) {
   }
 
   return fs.readFileAsync(filepath, 'utf8')
-    .then(function (str) {
+    .then(function(str) {
       return fs.writeFileAsync(filepath,
         str.replace(injectRegex, format('$1\n%s\n$2', toc)));
     })

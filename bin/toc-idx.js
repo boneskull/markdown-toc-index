@@ -32,7 +32,7 @@ var argv = yargs
     .option('bullet', {
       describe: 'The bullet to use for each item in the generated TOC.',
       type: 'string',
-      default: '*'
+      default: '-'
     })
     .option('max-depth', {
       describe: 'Use headings whose depth is at most maxDepth.',
@@ -64,8 +64,8 @@ var argv = yargs
     'Inject an index of all *.md files within docs/ and its subdirectories ' +
     'into README.md')
     .example('$0 --inject README.md --max-depth 2 --firsth1 README.md',
-    'Examine README.md and inject a TOC into it, passing the max-depth and' +
-    'firsth1 options through to the marked-toc package')
+    'Examine README.md and inject a TOC into it, passing the "max-depth" and' +
+    '"firsth1" options through to the marked-toc package')
     .example('$0 --output INDEX.md docs/*.md',
     'Output the index of files matching glob docs/*.md to new file INDEX.md')
     .help('help')
@@ -80,6 +80,9 @@ var argv = yargs
     .check(function checkArgs(argv) {
       if (argv.inject && argv.output) {
         throw new Error('--inject and --output cannot be used together');
+      }
+      if (argv.bullet.length === 1) {
+        argv.bullet += ' ';
       }
       return true;
     })
