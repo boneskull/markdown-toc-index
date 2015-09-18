@@ -1,6 +1,6 @@
 {
   "name": "markdown-toc-index",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Builds an index of Markdown files",
   "main": "index.js",
   "repository": {
