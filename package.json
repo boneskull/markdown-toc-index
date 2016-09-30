@@ -40,7 +40,7 @@
     "toc-idx": "bin/toc-idx.js"
   },
   "devDependencies": {
-    "eslint": "^0.21.2"
+    "eslint": "^3.7.0"
   },
   "scripts": {
     "lint": "eslint index.js"
