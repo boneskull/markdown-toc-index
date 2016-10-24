@@ -29,7 +29,7 @@
   "homepage": "https://github.com/boneskull/markdown-toc-index",
   "dependencies": {
     "bluebird": "^2.9.25",
-    "globule": "^0.2.0",
+    "globule": "^1.1.0",
     "lodash.isnumber": "^3.0.1",
     "lodash.isstring": "^3.0.1",
     "lodash.mapvalues": "^3.0.1",
