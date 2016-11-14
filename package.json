@@ -34,7 +34,7 @@
     "lodash.isstring": "^3.0.1",
     "lodash.mapvalues": "^3.0.1",
     "marked-toc": "^0.3.0",
-    "yargs": "^3.5.4"
+    "yargs": "^6.4.0"
   },
   "bin": {
     "toc-idx": "bin/toc-idx.js"
